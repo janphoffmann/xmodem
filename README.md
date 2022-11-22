@@ -4,6 +4,8 @@ arduino-xmodem is the X/YModem library for arduino.
 You can send files on your board to your host PC via serial port  
 using XModem/YModem protocol.  
 
+This fork uses ESP32's SPIFFS
+
 ## Features
 
 XModem support. (Both of checksum / CRC mode)  
@@ -20,9 +22,9 @@ This library uses File and Stream class, these are common for Arduino developmen
 
 clone or download this git repository.
 ```
-$ git clone https://github.com/Tomonobu3110/arduino-xmodem.git
+$ git clone https://github.com/janphoffmann/xmodem.git
 ```
-Then, include XModem library by Arduino IDE.  
+include XModem library by Arduino IDE.  
 Menu > Sketch > Include Library > Install Library... > (Select XModel directory)  
 
 ## Usage
@@ -41,5 +43,6 @@ or, implement it and do "pull request" :)
 
 * Original implimentation by (C) Mattheij Computer Service 1994  
 * Modified by Tomo3110(Tomonobu.Saito@gmail.com) 2019  
+* Modified by janphoffmann 2022
 
 ## License
