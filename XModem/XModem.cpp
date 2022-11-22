@@ -5,7 +5,9 @@
    Modified by Tomonobu.Saito@gmail.com 2019
 */
 
-#include <File.h>
+// #include <File.h>
+#include <SPIFFS.h>
+
 #include "XModem.h"
 
 // Number of seconds until giving up hope of receiving sync packets from
@@ -57,6 +59,7 @@ char XModem::sync(void)
   tryNo = 0;
   do
   {
+    
     port->readBytes(&inChar, 1);
     tryNo++;
     // When timed out, leave immediately
@@ -92,14 +95,17 @@ char XModem::waitACK(void)
   return (inChar);
 }
 
-void XModem::sendFile(File dataFile, const char *fileName)
+void XModem::sendFile(File dataFile, const char *fileName, int *ulp)
 {
   char inChar;
   int i;
   unsigned char tryNo;
+  long __my_p_n = 0;
 
   // Rewind data file before sending the file..
   dataFile.seek(0);
+  long abs_packets = int(dataFile.size()/1024);
+
 
   // When doing YModem, send block 0 to inform host about
   // file name to be received
@@ -117,6 +123,7 @@ void XModem::sendFile(File dataFile, const char *fileName)
     {
       this->outputByte(fileName[i]);
     }
+    
     char filesize[16];
     memset(filesize, 0, sizeof(filesize));
     sprintf(filesize, "%d", dataFile.size());
@@ -149,11 +156,9 @@ void XModem::sendFile(File dataFile, const char *fileName)
   while (0 < dataFile.available())
   {
     filepos = dataFile.position();
-
     // Sending a packet will be retried
     tryNo = 0;
-    do
-    {
+    do{
       // Seek to start of current data block,
       // will advance through the file as
       // block will be acked..
@@ -165,6 +170,7 @@ void XModem::sendFile(File dataFile, const char *fileName)
 
       // Try to use 1K(1024 byte) mode if possible
       if (ModeYModem == mode && 128 < dataFile.available()) {
+      // if (128 < dataFile.available()) {
         packetLen = 1024; // 1K mode
       } else {
         packetLen = 128; // normal mode
@@ -181,7 +187,16 @@ void XModem::sendFile(File dataFile, const char *fileName)
       for (i = 0; i < packetLen; i++)
       {
         inChar = (0 < dataFile.available()) ? dataFile.read() : EOF;
-        this->outputByte(inChar);
+        // int NoOfEOF = 0;
+        // if (inChar == EOF){
+        //   NoOfEOF +=1;
+        //   if(ACK == waitACK() && NoOfEOF >=10) {
+        //     inChar = NULL_TEST;
+        //   }
+        // }
+        this->outputByte(inChar); 
+
+        // if(!dataFile.available()) break;
       }
       // Send out checksum, either CRC-16 CCITT or
       // classical inverse of sum of bytes.
@@ -200,7 +215,10 @@ void XModem::sendFile(File dataFile, const char *fileName)
       if (tryNo > MAX_RETRY)
         goto err;
     } while (inChar != ACK);
-
+    long _ulp = __my_p_n*100;
+    _ulp /= abs_packets;
+    *ulp = (int)_ulp;
+    __my_p_n++;
     packetNo++;
   }
   // Send EOT and wait for ACK
@@ -216,7 +234,7 @@ void XModem::sendFile(File dataFile, const char *fileName)
   } while (inChar != ACK);
 
   // Send "all 00 data" to finish YModem.
-  if (this->mode == ModeYModem) {
+  if (this->mode == ModeXModem) {
     // wait 'C' from Rx(PC)
     this->sync();
     // send header.
@@ -241,11 +259,12 @@ void XModem::sendFile(File dataFile, const char *fileName)
     if (ACK != waitACK())
       goto err;
   }
-
-  port->println("Finish sending.");
+  *ulp = 100;
+  // port->println("Finish sending.");
   return;
 
   // When we get here everything was successful.
 err:
-  port->println("Error sending...");
+  // port->println("Error sending...");
+  *ulp = 100;
 }
